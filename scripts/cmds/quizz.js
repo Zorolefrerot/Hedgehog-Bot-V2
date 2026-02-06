@@ -1,8 +1,8 @@
-const fs = require("fs");
+ const fs = require("fs");
 
 // Charger les questions de culture générale
 const cultureQuestions = JSON.parse(
-  fs.readFileSync(__dirname + "cg.json", "utf8")
+  fs.readFileSync(__dirname + "/cg.json", "utf8")
 );
 
 const activeQuizzes = new Set();
@@ -125,7 +125,7 @@ module.exports = {
 
         if (!answered) {
           api.sendMessage(
-            `❌𝗦𝗧𝗢𝗣𝗣𝗘𝗭 \n✅ 𝗥é𝗽𝗼𝗻𝘀𝗲 : ${q.answer}`,
+            `⏱ Temps écoulé !\n✔️ Réponse : ${q.answer}`,
             threadID
           );
         }
@@ -134,7 +134,7 @@ module.exports = {
       const winner = [...scores.entries()].sort((a, b) => b[1] - a[1])[0];
 
       api.sendMessage(
-        `🏁 𝗤𝗨𝗜𝗭𝗭 𝗧𝗘𝗥𝗠𝗜𝗡É !\n🥇 𝗟𝗲 𝗩𝗮𝗶𝗻𝗾𝘂𝗲𝘂𝗿 𝗲𝘀𝘁 : ${
+        `🏁 Quizz terminé !\n🥇 Vainqueur : ${
           winner ? `${winner[0]} (${winner[1]} pts)` : "Personne"
         }`,
         threadID
