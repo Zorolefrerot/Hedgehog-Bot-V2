@@ -1,0 +1,59 @@
+[
+  { "name": "Real Madrid", "strength": 98 },
+  { "name": "FC Barcelona", "strength": 96 },
+  { "name": "Manchester City", "strength": 97 },
+  { "name": "Liverpool", "strength": 95 },
+  { "name": "Arsenal", "strength": 94 },
+  { "name": "Chelsea", "strength": 93 },
+  { "name": "Manchester United", "strength": 94 },
+  { "name": "Bayern Munich", "strength": 99 },
+  { "name": "Borussia Dortmund", "strength": 93 },
+  { "name": "RB Leipzig", "strength": 92 },
+
+  { "name": "Paris Saint-Germain", "strength": 96 },
+  { "name": "Olympique de Marseille", "strength": 91 },
+  { "name": "AS Monaco", "strength": 92 },
+  { "name": "Olympique Lyonnais", "strength": 90 },
+
+  { "name": "Juventus", "strength": 95 },
+  { "name": "AC Milan", "strength": 94 },
+  { "name": "Inter Milan", "strength": 96 },
+  { "name": "Napoli", "strength": 95 },
+  { "name": "AS Roma", "strength": 92 },
+  { "name": "Atalanta", "strength": 93 },
+
+  { "name": "Atletico Madrid", "strength": 96 },
+  { "name": "Sevilla FC", "strength": 92 },
+  { "name": "Valencia CF", "strength": 90 },
+  { "name": "Real Sociedad", "strength": 91 },
+
+  { "name": "Ajax Amsterdam", "strength": 94 },
+  { "name": "PSV Eindhoven", "strength": 93 },
+  { "name": "Feyenoord", "strength": 92 },
+
+  { "name": "Benfica", "strength": 95 },
+  { "name": "FC Porto", "strength": 95 },
+  { "name": "Sporting CP", "strength": 93 },
+
+  { "name": "Galatasaray", "strength": 93 },
+  { "name": "Fenerbahçe", "strength": 92 },
+
+  { "name": "Flamengo", "strength": 96 },
+  { "name": "Palmeiras", "strength": 95 },
+  { "name": "River Plate", "strength": 95 },
+  { "name": "Boca Juniors", "strength": 94 },
+
+  { "name": "Al Hilal", "strength": 94 },
+  { "name": "Al Nassr", "strength": 93 },
+
+  { "name": "LA Galaxy", "strength": 90 },
+  { "name": "Inter Miami", "strength": 91 },
+
+  { "name": "Celtic", "strength": 91 },
+  { "name": "Rangers", "strength": 90 },
+
+  { "name": "Tottenham Hotspur", "strength": 94 },
+  { "name": "West Ham United", "strength": 91 },
+  { "name": "Newcastle United", "strength": 92 },
+  { "name": "Aston Villa", "strength": 91 }
+]
