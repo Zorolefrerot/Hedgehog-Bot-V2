@@ -1,65 +1,13 @@
 const axios = require("axios");
-
 const activeSessions = {};
 
-/* ================= GEMINI API KEYS (ROTATION) ================= */
-const GEMINI_KEYS = [
-  "AIzaSyBFrL8G8AxErKikGqUEGiMXnf4ntBc5hDo",
-  "AIzaSyCiBWeok8eWxq2C2dKWGgwyS-tHSoyEJ4M",
-  "AIzaSyAqzuy7IvpOgJvkm_hSQswwNNqHkBFeSZA",
-  "AIzaSyAMiBew_-GeFe7z2ESh6yU9Eu9ZOq8Kjy8",
-  "AIzaSyDb1gOcJTcVTtMvfJxPKB5aC0spLD9p0Js",
-  "AIzaSyCIKInvO4gipyraTm8pP3qkCxMULH9_uOg"
-];
-
-let geminiIndex = 0;
-
-function getGeminiKey() {
-  return GEMINI_KEYS[geminiIndex % GEMINI_KEYS.length];
-}
-
-function rotateGeminiKey() {
-  geminiIndex++;
-}
-
-/* ================= GEMINI CHECK FUNCTION ================= */
-async function isSameCharacter(userAnswer, correctName) {
-  const prompt = `
-Tu es un vérificateur strict.
-Détermine si "${userAnswer}" et "${correctName}" désignent le MÊME personnage de manga.
-
-Règles :
-- Accepte prénom seul ou nom complet
-- Accepte traduction ou romanisation
-- Ignore accents, majuscules, ordre des mots
-- Refuse si ce n'est pas la même personne
-
-Répond UNIQUEMENT par TRUE ou FALSE.
-`;
-
-  for (let i = 0; i < GEMINI_KEYS.length; i++) {
-    try {
-      const res = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getGeminiKey()}`,
-        {
-          contents: [{ parts: [{ text: prompt }] }]
-        }
-      );
-
-      const text =
-        res.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-      return text.toUpperCase().includes("TRUE");
-    } catch (err) {
-      if (err.response && [403, 429].includes(err.response.status)) {
-        rotateGeminiKey();
-      } else {
-        console.error("Gemini error:", err.message);
-        break;
-      }
-    }
-  }
-  return false;
+/* ================= UTIL ================= */
+function normalizeName(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFD") // enlever accents
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
 }
 
 /* ================= COMMAND ================= */
@@ -67,20 +15,18 @@ module.exports = {
   config: {
     name: "gqid",
     aliases: ["quizid", "generalquizzid"],
-    version: "3.0",
+    version: "5.0",
     author: "Merdi Madimba",
     role: 0,
     category: "🎮 Jeu",
-    description: "Quiz personnages manga (Jikan + Gemini 2.5 Flash)"
+    description: "Quiz personnages manga (Jikan) - accepte prénom ou nom complet"
   },
 
   onStart: async ({ event, message }) => {
-    const threadID = event.threadID;
-    if (activeSessions[threadID])
+    if (activeSessions[event.threadID])
       return message.reply("⚠️ Un quiz est déjà en cours.");
 
-    activeSessions[threadID] = { step: "manga" };
-
+    activeSessions[event.threadID] = { step: "manga" };
     message.reply(
       "🎌 **QUIZ PERSONNAGES MANGA**\n\n" +
       "👉 Écris le **nom du manga**\n" +
@@ -94,10 +40,11 @@ module.exports = {
     const session = activeSessions[threadID];
     if (!session) return;
 
-    const body = event.body?.trim();
-    if (!body) return;
+    const text = event.body?.trim();
+    if (!text) return;
 
-    if (body.toLowerCase() === "!stop") {
+    /* ===== STOP ===== */
+    if (text.toLowerCase() === "!stop") {
       clearTimeout(session.timeout);
       delete activeSessions[threadID];
       return message.reply("🛑 Quiz arrêté.");
@@ -105,19 +52,19 @@ module.exports = {
 
     /* ===== CHOIX MANGA ===== */
     if (session.step === "manga") {
-      session.manga = body.toLowerCase() === "multivers" ? "multivers" : body;
+      session.manga = text.toLowerCase() === "multivers" ? "multivers" : text;
       session.step = "number";
-      return message.reply("🔢 Nombre d’images (1 à 50) ?");
+      return message.reply("🔢 Nombre d’images (1–50) ?");
     }
 
     /* ===== CHOIX NOMBRE ===== */
-    if (session.step === "number" && !isNaN(body)) {
-      const total = Math.min(50, Math.max(1, parseInt(body)));
-      session.total = total;
+    if (session.step === "number" && !isNaN(text)) {
+      session.total = Math.min(50, Math.max(1, parseInt(text)));
       session.index = 0;
       session.scores = {};
       session.characters = [];
       session.step = "play";
+      session.firstAnswered = false;
 
       await message.reply("⏳ Chargement des personnages...");
 
@@ -127,32 +74,18 @@ module.exports = {
           session.characters = r.data.data
             .filter(c => c.images?.jpg?.image_url)
             .sort(() => Math.random() - 0.5)
-            .slice(0, total)
-            .map(c => ({
-              name: c.name,
-              image: c.images.jpg.image_url,
-              source: "Multivers"
-            }));
+            .slice(0, session.total)
+            .map(c => ({ name: c.name, image: c.images.jpg.image_url, source: "Multivers" }));
         } else {
-          const m = await axios.get("https://api.jikan.moe/v4/manga", {
-            params: { q: session.manga, limit: 1 }
-          });
+          const m = await axios.get("https://api.jikan.moe/v4/manga", { params: { q: session.manga, limit: 1 } });
           const manga = m.data.data[0];
-          if (!manga) throw new Error("Manga introuvable");
-
-          const c = await axios.get(
-            `https://api.jikan.moe/v4/manga/${manga.mal_id}/characters`
-          );
-
+          if (!manga) throw new Error();
+          const c = await axios.get(`https://api.jikan.moe/v4/manga/${manga.mal_id}/characters`);
           session.characters = c.data.data
             .filter(x => x.character.images?.jpg?.image_url)
             .sort(() => Math.random() - 0.5)
-            .slice(0, total)
-            .map(x => ({
-              name: x.character.name,
-              image: x.character.images.jpg.image_url,
-              source: manga.title
-            }));
+            .slice(0, session.total)
+            .map(x => ({ name: x.character.name, image: x.character.images.jpg.image_url, source: manga.title }));
         }
       } catch {
         delete activeSessions[threadID];
@@ -163,43 +96,52 @@ module.exports = {
       return sendQuestion();
     }
 
-    /* ===== JEU ===== */
-    if (session.step === "play" && !session.answered) {
+    /* ===== JEU : PREMIÈRE BONNE RÉPONSE SEULE ===== */
+    if (session.step === "play") {
+      if (session.firstAnswered) return; // ignore toutes les autres réponses
+
       const current = session.characters[session.index];
-      const ok = await isSameCharacter(body, current.name);
+      const normalizedUser = normalizeName(text);
+      const normalizedName = normalizeName(current.name);
 
-      if (ok) {
-        session.answered = true;
-        clearTimeout(session.timeout);
+      // Accepte si prénom ou nom complet
+      const correct =
+        normalizedUser === normalizedName ||
+        normalizedName.split(" ").some(p => p === normalizedUser);
 
-        const name = await usersData.getName(event.senderID);
-        session.scores[name] = (session.scores[name] || 0) + 10;
+      if (!correct) return;
 
-        let score = "📊 **Scores**\n";
-        for (let [n, s] of Object.entries(session.scores))
-          score += `🏅 ${n} : ${s} pts\n`;
+      // Première bonne réponse validée
+      session.firstAnswered = true;
+      clearTimeout(session.timeout);
 
-        await message.reply(
-          `✅ **Correct !**\n👤 ${current.name}\n\n${score}`
-        );
+      const userName = await usersData.getName(event.senderID);
+      session.scores[userName] = (session.scores[userName] || 0) + 10;
 
-        session.index++;
-        setTimeout(sendQuestion, 1200);
-      }
+      let board = "📊 **Scores**\n";
+      for (const [n, s] of Object.entries(session.scores)) board += `🏅 ${n} : ${s} pts\n`;
+
+      await message.reply(`✅ **Bonne réponse !**\n👤 ${current.name}\n\n${board}`);
+
+      session.index++;
+      setTimeout(() => {
+        session.firstAnswered = false; // reset pour prochaine image
+        sendQuestion();
+      }, 1200);
     }
 
-    /* ===== SEND QUESTION ===== */
+    /* ===== ENVOI QUESTION ===== */
     async function sendQuestion() {
       if (session.index >= session.characters.length) {
         let end = "🏁 **FIN DU QUIZ**\n\n";
         const sorted = Object.entries(session.scores).sort((a, b) => b[1] - a[1]);
-        for (let [n, s] of sorted) end += `🏆 ${n} : ${s} pts\n`;
+        for (const [n, s] of sorted) end += `🏆 ${n} : ${s} pts\n`;
         delete activeSessions[threadID];
         return message.reply(end);
       }
 
-      session.answered = false;
       const c = session.characters[session.index];
+      session.firstAnswered = false;
 
       await message.send({
         body: `🖼️ ${session.index + 1}/${session.total}\n📚 ${c.source}\n❓ Qui est-ce ?`,
@@ -207,7 +149,7 @@ module.exports = {
       });
 
       session.timeout = setTimeout(async () => {
-        if (!session.answered) {
+        if (!session.firstAnswered) {
           await message.reply(`⏰ Temps écoulé ! Réponse : **${c.name}**`);
           session.index++;
           sendQuestion();
